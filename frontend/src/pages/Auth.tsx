@@ -1,42 +1,58 @@
 import React, { useState } from 'react';
 import { User, Lock, Mail, ArrowRight, Loader2 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 interface AuthProps {
-  onLoginSuccess: (email: string, name: string) => void;
+  onLoginSuccess: () => void;
 }
 
 export default function Auth({ onLoginSuccess }: AuthProps) {
   const [screen, setScreen] = useState<'login' | 'signup' | 'forgot'>('login');
-  const [email, setEmail] = useState('arghamjain.rj@gmail.com');
-  const [password, setPassword] = useState('password123');
-  const [fullName, setFullName] = useState('Argham Jain');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [msg, setMsg] = useState('');
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
-
     setIsLoading(true);
     setMsg('');
-    
-    setTimeout(() => {
-      setIsLoading(false);
+    setError('');
+
+    try {
       if (screen === 'login') {
-        const derivedName = email === 'arghamjain.rj@gmail.com' ? 'Argham Jain' : email.split('@')[0];
-        onLoginSuccess(email, derivedName);
+        const { error: authErr } = await supabase.auth.signInWithPassword({ email, password });
+        if (authErr) throw authErr;
+        onLoginSuccess();
       } else if (screen === 'signup') {
-        onLoginSuccess(email, fullName || 'Team Member');
+        const { error: authErr } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { full_name: fullName } },
+        });
+        if (authErr) throw authErr;
+        setMsg('Account created! Check your email to confirm, then sign in.');
+        setScreen('login');
       } else {
-        setMsg(`Reset link sent to ${email}. Check your spam!`);
+        const { error: authErr } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (authErr) throw authErr;
+        setMsg(`Reset link sent to ${email}. Check your spam folder.`);
         setScreen('login');
       }
-    }, 850);
+    } catch (err: any) {
+      setError(err?.message || 'Something went wrong. Try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-brand-lavender-tint flex flex-col items-center justify-center p-4 antialiased font-sans relative overflow-hidden">
-      
+
       {/* MASSIVE OUTLINE WATERMARK BACKGROUND */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 select-none pointer-events-none z-0 opacity-10 w-full text-center leading-none">
         <span className="massive-text outline-text block text-[130px] md:text-[240px]">madmix</span>
@@ -44,7 +60,7 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
 
       {/* Container Card */}
       <div className="w-full max-w-md bg-brand-white rounded-2xl border border-brand-lavender/30 p-8 flex flex-col space-y-6 relative z-10 shadow-xl">
-        
+
         {/* Playful Logo Wordmark */}
         <div className="flex flex-col items-center space-y-1 border-b border-brand-lavender-tint/40 pb-5">
           <span className="font-fredoka text-4xl font-bold tracking-tight text-brand-purple lowercase flex items-center">
@@ -66,13 +82,19 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
           <p className="text-xs text-brand-near-black/70">
             {screen === 'login' && 'Get updates on sales and operations inside our dashboard.'}
             {screen === 'signup' && 'Be in the know. All operational access is pre-authorized.'}
-            {screen === 'forgot' && 'We’ll email you instructions to restore operational portal.'}
+            {screen === 'forgot' && 'We'll email you instructions to restore operational portal.'}
           </p>
         </div>
 
         {msg && (
           <div className="p-3 bg-brand-green/10 border border-brand-green/20 text-brand-green rounded-full text-center text-xs font-mono font-bold uppercase tracking-wider">
             {msg}
+          </div>
+        )}
+
+        {error && (
+          <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-2xl text-center text-xs font-mono font-bold tracking-wider">
+            {error}
           </div>
         )}
 
@@ -164,8 +186,8 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
           {screen === 'login' ? (
             <p>
               New to the portal?{' '}
-              <button 
-                onClick={() => setScreen('signup')} 
+              <button
+                onClick={() => { setScreen('signup'); setError(''); setMsg(''); }}
                 className="font-bold text-brand-purple hover:underline"
               >
                 Create Account
@@ -174,8 +196,8 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
           ) : (
             <p>
               Already verified?{' '}
-              <button 
-                onClick={() => setScreen('login')} 
+              <button
+                onClick={() => { setScreen('login'); setError(''); setMsg(''); }}
                 className="font-bold text-brand-purple hover:underline"
               >
                 Sign In

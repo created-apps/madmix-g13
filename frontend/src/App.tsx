@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react';
-import { 
-  AnalysisFilters, 
-  getUserProfile, 
-  updateUserProfile, 
-  getBookmarkedDecisionIds, 
+import {
+  AnalysisFilters,
+  getUserProfile,
+  updateUserProfile,
+  getBookmarkedDecisionIds,
   toggleBookmarkDecision,
   shareAnalysis,
   getCompletedDecisionIds,
-  toggleCompletedDecision
+  toggleCompletedDecision,
 } from './lib/data';
+import { supabase } from './lib/supabase';
 import { UserProfile, Decision, SharedAnalysis } from './types';
 import AppShell from './components/layout/AppShell';
 import Dashboard from './pages/Dashboard';
@@ -23,16 +24,15 @@ import Auth from './pages/Auth';
 import ShareDialog from './components/ui/ShareDialog';
 
 export default function App() {
-  // 1. Session / Auth State
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('madmix_session_active') === 'true';
-  });
+  // 1. Session / Auth State — driven by Supabase onAuthStateChange
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [authChecked, setAuthChecked] = useState<boolean>(false);
 
   // 2. Profile & Bookmark States
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [bookmarks, setBookmarks] = useState<string[]>([]);
   const [completedDecisions, setCompletedDecisions] = useState<string[]>([]);
-  
+
   // 3. Navigation Routing State
   const [activeTab, setActiveTab] = useState<string>('home');
   const [previousTab, setPreviousTab] = useState<string>('home');
@@ -44,52 +44,60 @@ export default function App() {
     city: '',
     pincode: '',
     platform: '',
-    flavour: ''
+    flavour: '',
   });
 
   // 5. Global Sharing Overlays State
   const [shareTarget, setShareTarget] = useState<Decision | null>(null);
   const [isShareOpen, setIsShareOpen] = useState(false);
 
-  // Synchronize configuration on login success
+  // Subscribe to Supabase auth state once on mount
   useEffect(() => {
-    if (isAuthenticated) {
-      async function syncUserData() {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsAuthenticated(!!session);
+      setAuthChecked(true);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(!!session);
+      if (!session) {
+        setUserProfile(null);
+        setBookmarks([]);
+        setCompletedDecisions([]);
+        setActiveTab('home');
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Load user data after auth confirmed
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    async function syncUserData() {
+      try {
         const [profile, savedIds, completedIds] = await Promise.all([
           getUserProfile(),
           getBookmarkedDecisionIds(),
-          getCompletedDecisionIds()
+          getCompletedDecisionIds(),
         ]);
         setUserProfile(profile);
         setBookmarks(savedIds);
         setCompletedDecisions(completedIds);
+      } catch {
+        // Profile may not exist yet if email not yet confirmed; stay on Auth
       }
-      syncUserData();
     }
+    syncUserData();
   }, [isAuthenticated]);
 
-  const handleLoginSuccess = (email: string, name: string) => {
-    localStorage.setItem('madmix_session_active', 'true');
-    setIsAuthenticated(true);
-    // Trigger initial profile save
-    const initialProfile: UserProfile = {
-      name,
-      email,
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&h=150&q=80',
-      watchedCities: ['Bangalore', 'Ahmedabad'],
-      watchedFlavours: ['Aloo Sev Millet Bhujia', 'BBQ Blast Millet Bhujia']
-    };
-    setUserProfile(initialProfile);
-    localStorage.setItem('madmix_user_profile', JSON.stringify(initialProfile));
+  const handleLoginSuccess = () => {
+    // Session change fires onAuthStateChange; useEffect above handles the rest.
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('madmix_session_active');
-    setIsAuthenticated(false);
-    setUserProfile(null);
-    setBookmarks([]);
-    setCompletedDecisions([]);
-    setActiveTab('home');
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    // onAuthStateChange listener resets all state
   };
 
   const handleUpdateProfile = async (updated: UserProfile) => {
@@ -109,31 +117,27 @@ export default function App() {
     setCompletedDecisions(freshIds);
   };
 
-  // Navigates directly to /explore pre-filtered to a specific scope
   const handleNavigateToExplore = (filters: Partial<AnalysisFilters>) => {
-    const fullFilters: AnalysisFilters = {
+    setExploreFilters({
       state: filters.state || '',
       city: filters.city || '',
       pincode: filters.pincode || '',
       platform: filters.platform || '',
-      flavour: filters.flavour || ''
-    };
-    setExploreFilters(fullFilters);
+      flavour: filters.flavour || '',
+    });
     setPreviousTab(activeTab);
     setActiveTab('explore');
   };
 
-  // Click handler on Shared items: loads filter scope AND opens details/workbench
   const handleLoadSharedScope = (filterScope: SharedAnalysis['filterScope'], decisionId?: string) => {
-    const fullFilters: AnalysisFilters = {
+    setExploreFilters({
       state: filterScope.state || '',
       city: filterScope.city || '',
       pincode: filterScope.pincode || '',
       platform: filterScope.platform || '',
-      flavour: filterScope.flavour || ''
-    };
-    setExploreFilters(fullFilters);
-    
+      flavour: filterScope.flavour || '',
+    });
+
     if (decisionId) {
       setActiveDecisionId(decisionId);
       setPreviousTab('shared');
@@ -157,28 +161,29 @@ export default function App() {
 
   const handleConfirmShare = async (title: string, note: string) => {
     if (!shareTarget) return;
-    
-    const filterScope = {
-      state: shareTarget.state || '',
-      city: shareTarget.city || '',
-      pincode: '',
-      platform: shareTarget.platform || '',
-      flavour: shareTarget.flavour || ''
-    };
 
     await shareAnalysis(
       title,
       note,
-      filterScope,
+      {
+        state: shareTarget.state || '',
+        city: shareTarget.city || '',
+        pincode: '',
+        platform: shareTarget.platform || '',
+        flavour: shareTarget.flavour || '',
+      },
       'decision',
       null,
-      shareTarget.id
+      shareTarget.id,
     );
 
     setIsShareOpen(false);
     setShareTarget(null);
-    setActiveTab('shared'); // take to shared feed to show post
+    setActiveTab('shared');
   };
+
+  // Show nothing until Supabase has resolved the initial session check
+  if (!authChecked) return null;
 
   if (!isAuthenticated || !userProfile) {
     return <Auth onLoginSuccess={handleLoginSuccess} />;
@@ -190,9 +195,7 @@ export default function App() {
         activeTab={activeTab === 'decision-detail' ? previousTab : activeTab}
         setActiveTab={(tab) => {
           setActiveTab(tab);
-          if (tab !== 'decision-detail') {
-            setPreviousTab(tab);
-          }
+          if (tab !== 'decision-detail') setPreviousTab(tab);
         }}
         userProfile={userProfile}
         onLogout={handleLogout}
@@ -200,7 +203,7 @@ export default function App() {
         completedCount={completedDecisions.length}
       >
         {activeTab === 'home' && (
-          <Dashboard 
+          <Dashboard
             onNavigateToExplore={handleNavigateToExplore}
             onShare={handleTriggerShare}
             bookmarks={bookmarks}
@@ -213,7 +216,7 @@ export default function App() {
         )}
 
         {activeTab === 'explore' && (
-          <Explore 
+          <Explore
             initialFilters={exploreFilters}
             onShare={handleTriggerShare}
             bookmarks={bookmarks}
@@ -229,7 +232,7 @@ export default function App() {
         )}
 
         {activeTab === 'saved' && (
-          <Saved 
+          <Saved
             bookmarks={bookmarks}
             onToggleBookmark={handleToggleBookmark}
             onShare={handleTriggerShare}
@@ -239,7 +242,7 @@ export default function App() {
         )}
 
         {activeTab === 'completed' && (
-          <Completed 
+          <Completed
             completedIds={completedDecisions}
             bookmarks={bookmarks}
             onToggleBookmark={handleToggleBookmark}
@@ -250,12 +253,10 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'import' && (
-          <Import />
-        )}
+        {activeTab === 'import' && <Import />}
 
         {activeTab === 'profile' && (
-          <Profile 
+          <Profile
             userProfile={userProfile}
             onUpdateProfile={handleUpdateProfile}
             onLogout={handleLogout}
@@ -263,7 +264,7 @@ export default function App() {
         )}
 
         {activeTab === 'decision-detail' && (
-          <DecisionDetail 
+          <DecisionDetail
             decisionId={activeDecisionId}
             onBack={() => setActiveTab(previousTab)}
             isBookmarked={bookmarks.includes(activeDecisionId)}
@@ -276,7 +277,6 @@ export default function App() {
         )}
       </AppShell>
 
-      {/* Global Share Dialog Modal */}
       {shareTarget && (
         <ShareDialog
           isOpen={isShareOpen}

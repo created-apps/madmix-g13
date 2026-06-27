@@ -1,5 +1,5 @@
 import React from 'react';
-import { RAW_CITY_DATA, RawCityData } from '../../lib/data';
+import { RAW_CITY_DATA, RawCityData } from '../../lib/data/constants';
 import { MapPin, AlertCircle, TrendingUp, TrendingDown, HelpCircle, ShieldAlert } from 'lucide-react';
 
 interface CityBreakdownProps {

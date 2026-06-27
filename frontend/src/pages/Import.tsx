@@ -1,15 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  getSkuSalesData,
-  getPodsAvailabilityData,
-  getSalesSpendsData,
-  getSurveyResponsesData,
-  getDecisionsData,
+import {
   saveImportedData,
   clearImportedData,
-  STATE_CITY_MAPPING
 } from '../lib/data';
-import { SkuSales, PodsAvailability, SalesSpends, SurveyResponse, Decision } from '../types';
+import { Decision } from '../types';
 import { 
   Upload, 
   Trash2, 
@@ -25,7 +19,7 @@ import {
   Info
 } from 'lucide-react';
 
-type DataType = 'sku_sales' | 'pods_availability' | 'sales_spends' | 'survey_responses' | 'decisions';
+type DataType = 'sku_sales' | 'pods_sales' | 'sales_spends' | 'survey_responses' | 'decisions';
 
 interface DataTypeMeta {
   id: DataType;
@@ -49,15 +43,15 @@ const DATA_TYPES: DataTypeMeta[] = [
     ]
   },
   {
-    id: 'pods_availability',
-    label: 'PODs Availability',
-    description: 'Log inventory or store availability metrics over specific months.',
-    requiredFields: ['city', 'platform', 'month', 'value'],
-    sampleCsv: `city,platform,month,value\nBangalore,Big Basket,Apr 2026,92\nAhmedabad,Instamart,May 2026,45\nMumbai,Amazon,May 2026,88`,
+    id: 'pods_sales',
+    label: 'PODs Sales',
+    description: 'City-level Points of Distribution sales MRP (rupees) per platform per month.',
+    requiredFields: ['city', 'platform', 'month', 'salesMrp'],
+    sampleCsv: `city,platform,month,salesMrp\nBangalore,Big Basket,Apr 2026,40900\nAhmedabad,Instamart,May 2026,4825\nMumbai,Big Basket,May 2026,38240`,
     sampleJson: [
-      { city: 'Bangalore', platform: 'Big Basket', month: 'Apr 2026', value: 92 },
-      { city: 'Ahmedabad', platform: 'Instamart', month: 'May 2026', value: 45 }
-    ]
+      { city: 'Bangalore', platform: 'Big Basket', month: 'Apr 2026', salesMrp: 40900 },
+      { city: 'Ahmedabad', platform: 'Instamart', month: 'May 2026', salesMrp: 4825 },
+    ],
   },
   {
     id: 'sales_spends',
@@ -71,28 +65,23 @@ const DATA_TYPES: DataTypeMeta[] = [
     ]
   },
   {
-    id: 'survey_responses',
-    label: 'Customer Surveys',
-    description: 'Import plain-English feedback on taste, packaging, and repeat intent.',
-    requiredFields: ['id', 'submittedAt', 'state', 'city', 'pincode', 'commerce', 'flavour', 'line', 'taste', 'repurchase', 'recommend', 'improvement', 'snackFrequency'],
-    sampleCsv: `id,submittedAt,state,city,pincode,commerce,flavour,line,taste,repurchase,recommend,improvement,snackFrequency\nSR-501,2026-06-01T10:00:00Z,Karnataka,Bangalore,560001,Big Basket,Aloo Sev Millet Bhujia,Baked Millet Bhujia,Loved it,Definitely,Promoter,"Nothing, it’s great",Daily\nSR-502,2026-06-02T14:30:00Z,Gujarat,Ahmedabad,380001,Instamart,BBQ Blast Millet Bhujia,Baked Millet Bhujia,Liked it,Maybe,Passive,Too spicy,Few times a week`,
+    id: ‘survey_responses’,
+    label: ‘Customer Surveys’,
+    description: ‘Availability and platform preference feedback from MadMix customer survey.’,
+    requiredFields: [‘id’, ‘submittedAt’, ‘ageGroup’, ‘location’, ‘consumptionFrequency’, ‘skippedDueToUnavailability’, ‘platform’, ‘pincodeAvailability’],
+    sampleCsv: `id,submittedAt,ageGroup,location,consumptionFrequency,skippedDueToUnavailability,platform,pincodeAvailability\nMX4A7,2026-06-01T10:00:00Z,25-34,Bangalore,Few times a week,false,Blinkit,true\nKR8T2,2026-06-02T14:30:00Z,18-24,Mumbai,Daily,true,Zepto,false`,
     sampleJson: [
       {
-        id: 'SR-501',
-        submittedAt: '2026-06-01T10:00:00Z',
-        state: 'Karnataka',
-        city: 'Bangalore',
-        pincode: '560001',
-        commerce: 'Big Basket',
-        flavour: 'Aloo Sev Millet Bhujia',
-        line: 'Baked Millet Bhujia',
-        taste: 'Loved it',
-        repurchase: 'Definitely',
-        recommend: 'Promoter',
-        improvement: 'Nothing, it’s great',
-        snackFrequency: 'Daily'
-      }
-    ]
+        id: ‘MX4A7’,
+        submittedAt: ‘2026-06-01T10:00:00Z’,
+        ageGroup: ‘25-34’,
+        location: ‘Bangalore’,
+        consumptionFrequency: ‘Few times a week’,
+        skippedDueToUnavailability: false,
+        platform: ‘Blinkit’,
+        pincodeAvailability: true,
+      },
+    ],
   },
   {
     id: 'decisions',
@@ -139,20 +128,14 @@ export default function Import() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const activeMeta = DATA_TYPES.find(d => d.id === activeType)!;
 
-  // Load database status
   const loadStats = () => {
-    const skuCustom = localStorage.getItem('madmix_imported_sku_sales') ? JSON.parse(localStorage.getItem('madmix_imported_sku_sales')!).length : 0;
-    const availCustom = localStorage.getItem('madmix_imported_pods_availability') ? JSON.parse(localStorage.getItem('madmix_imported_pods_availability')!).length : 0;
-    const spendCustom = localStorage.getItem('madmix_imported_sales_spends') ? JSON.parse(localStorage.getItem('madmix_imported_sales_spends')!).length : 0;
-    const surveyCustom = localStorage.getItem('madmix_imported_survey_responses') ? JSON.parse(localStorage.getItem('madmix_imported_survey_responses')!).length : 0;
-    const decCustom = localStorage.getItem('madmix_imported_decisions') ? JSON.parse(localStorage.getItem('madmix_imported_decisions')!).length : 0;
-
+    // Data is now server-side; show empty stats — the API does not expose row counts
     setStats({
-      sku_sales: { custom: skuCustom, total: getSkuSalesData().length },
-      pods_availability: { custom: availCustom, total: getPodsAvailabilityData().length },
-      sales_spends: { custom: spendCustom, total: getSalesSpendsData().length },
-      survey_responses: { custom: surveyCustom, total: getSurveyResponsesData().length },
-      decisions: { custom: decCustom, total: getDecisionsData().length }
+      sku_sales: { custom: 0, total: 0 },
+      pods_sales: { custom: 0, total: 0 },
+      sales_spends: { custom: 0, total: 0 },
+      survey_responses: { custom: 0, total: 0 },
+      decisions: { custom: 0, total: 0 },
     });
   };
 
@@ -338,7 +321,7 @@ export default function Import() {
   };
 
   const handleClear = async (type: DataType) => {
-    if (confirm(`Are you sure you want to delete all imported records for ${type === 'sku_sales' ? 'SKU Sales' : type === 'pods_availability' ? 'PODs Availability' : type === 'sales_spends' ? 'Sales & Spends' : type === 'survey_responses' ? 'Customer Surveys' : 'Recommended Actions'} and revert to seed data?`)) {
+    if (confirm(`Are you sure you want to delete all imported records for ${type === 'sku_sales' ? 'SKU Sales' : type === 'pods_sales' ? 'PODs Sales' : type === 'sales_spends' ? 'Sales & Spends' : type === 'survey_responses' ? 'Customer Surveys' : 'Recommended Actions'}? This will remove the data from the server.`)) {
       await clearImportedData(type);
       loadStats();
       setNotification({

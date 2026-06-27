@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Filter, X, MapPin, ShoppingBag, Tag, SlidersHorizontal } from 'lucide-react';
-import { STATE_CITY_MAPPING, CITY_PINCODES, SKUS } from '../../lib/data/seed';
+import { STATE_CITY_MAPPING, CITY_PINCODES, SKUS } from '../../lib/data/constants';
 import { AnalysisFilters } from '../../lib/data';
 
 interface FilterBarProps {

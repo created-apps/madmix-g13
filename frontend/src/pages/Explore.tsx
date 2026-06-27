@@ -4,17 +4,16 @@ import { Decision } from '../types';
 import FilterBar from '../components/filters/FilterBar';
 import DecisionCard from '../components/decisions/DecisionCard';
 import CityBreakdown from '../components/decisions/CityBreakdown';
-import { 
-  SalesByFlavourChart, 
-  TasteSentimentChart, 
-  A2SOverTimeChart 
+import {
+  SalesByFlavourChart,
+  A2SOverTimeChart,
 } from '../components/charts/DashboardCharts';
-import { 
-  Sparkles, 
-  AlertCircle, 
-  ThumbsUp, 
+import {
+  Sparkles,
+  AlertCircle,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  MapPin,
 } from 'lucide-react';
 
 interface ExploreProps {
@@ -251,92 +250,82 @@ export default function Explore({
 
             </div>
 
-            {/* Right Column: Customer Sentiment & Form MCQ Summary (Col span 4) */}
+            {/* Right Column: Survey Signals (Col span 4) */}
             <div className="md:col-span-4 space-y-6">
-              
-              {/* Taste Sentiment Doughnut */}
+
+              {/* Platform Gap */}
               <div className="bg-brand-white p-6 rounded-2xl border border-brand-lavender/30 shadow-xs space-y-4">
                 <div>
-                  <h3 className="font-display font-extrabold text-sm text-brand-purple uppercase tracking-tight">Taste Feedback Split</h3>
-                  <p className="text-[10px] font-mono text-brand-near-black/50 uppercase tracking-wider">Summarized consumer questionnaire feedback</p>
+                  <h3 className="font-display font-extrabold text-sm text-brand-purple uppercase tracking-tight">Platform Gap</h3>
+                  <p className="text-[10px] font-mono text-brand-near-black/50 uppercase tracking-wider">Where customers shop vs where MadMix sells</p>
                 </div>
-                {analytics?.tasteSentiment && (
-                  <TasteSentimentChart data={analytics.tasteSentiment} />
+                {analytics?.platformGap && (
+                  <div className="space-y-3">
+                    <div className="h-3 w-full bg-brand-lavender-tint rounded-full overflow-hidden flex border border-brand-lavender/20">
+                      <div className="bg-brand-green h-full" style={{ width: `${analytics.platformGap.blinkitPct}%` }} title={`Blinkit: ${analytics.platformGap.blinkitPct}%`} />
+                      <div className="bg-brand-purple h-full" style={{ width: `${analytics.platformGap.zeptoPct}%` }} title={`Zepto: ${analytics.platformGap.zeptoPct}%`} />
+                      <div className="bg-brand-lavender h-full" style={{ width: `${analytics.platformGap.otherPct}%` }} title={`Other: ${analytics.platformGap.otherPct}%`} />
+                    </div>
+                    <div className="flex flex-col gap-1.5 text-[10px] font-mono font-bold uppercase tracking-wider">
+                      <span className="text-brand-green flex items-center justify-between">
+                        <span>Blinkit</span><span>{analytics.platformGap.blinkitPct.toFixed(0)}%</span>
+                      </span>
+                      <span className="text-brand-purple flex items-center justify-between border-t border-brand-lavender-tint/40 pt-1">
+                        <span>Zepto</span><span>{analytics.platformGap.zeptoPct.toFixed(0)}%</span>
+                      </span>
+                      <span className="text-brand-near-black/60 flex items-center justify-between border-t border-brand-lavender-tint/40 pt-1">
+                        <span>Other</span><span>{analytics.platformGap.otherPct.toFixed(0)}%</span>
+                      </span>
+                    </div>
+                    <p className="text-[10px] font-sans text-brand-near-black/60 leading-relaxed border-t border-brand-lavender-tint/40 pt-2">
+                      {analytics.platformGap.insight}
+                    </p>
+                  </div>
                 )}
               </div>
 
-              {/* Google Form Summary Cards */}
+              {/* Survey Stats Cards */}
               <div className="space-y-4">
                 <h3 className="font-display font-extrabold text-xs md:text-sm uppercase tracking-wider text-brand-purple/85">Survey Statistics</h3>
 
-                {/* Net Promoter Split */}
+                {/* Skip Rate */}
                 <div className="bg-brand-white p-5 rounded-2xl border border-brand-lavender/30 shadow-xs space-y-3 stat-box">
                   <span className="text-[10px] font-mono font-bold text-brand-near-black/50 uppercase tracking-widest block">
-                    NPS Classifications
+                    Skipped Due to Unavailability
                   </span>
-                  
-                  <div className="h-3 w-full bg-brand-lavender-tint rounded-full overflow-hidden flex border border-brand-lavender/20">
-                    <div 
-                      className="bg-brand-green h-full" 
-                      style={{ width: `${analytics?.surveySummary?.promoterSplit?.promoter || 0}%` }}
-                      title={`Promoters: ${analytics?.surveySummary?.promoterSplit?.promoter}%`}
-                    />
-                    <div 
-                      className="bg-brand-lavender h-full" 
-                      style={{ width: `${analytics?.surveySummary?.promoterSplit?.passive || 0}%` }}
-                      title={`Passives: ${analytics?.surveySummary?.promoterSplit?.passive}%`}
-                    />
-                    <div 
-                      className="bg-brand-red h-full" 
-                      style={{ width: `${analytics?.surveySummary?.promoterSplit?.detractor || 0}%` }}
-                      title={`Detractors: ${analytics?.surveySummary?.promoterSplit?.detractor}%`}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1.5 text-[10px] font-mono font-bold uppercase tracking-wider pt-1">
-                    <span className="text-brand-green flex items-center justify-between">
-                      <span>✓ Promoters:</span> <span>{analytics?.surveySummary?.promoterSplit?.promoter}%</span>
-                    </span>
-                    <span className="text-brand-near-black/70 flex items-center justify-between border-t border-brand-lavender-tint/40 pt-1">
-                      <span>⚡ Passives:</span> <span>{analytics?.surveySummary?.promoterSplit?.passive}%</span>
-                    </span>
-                    <span className="text-brand-red flex items-center justify-between border-t border-brand-lavender-tint/40 pt-1">
-                      <span>⚠ Detractors:</span> <span>{analytics?.surveySummary?.promoterSplit?.detractor}%</span>
-                    </span>
-                  </div>
-                </div>
-
-                {/* Top Complaint Box */}
-                <div className="bg-brand-white p-5 rounded-2xl border border-brand-lavender/30 shadow-xs flex flex-col justify-between stat-box">
-                  <span className="text-[10px] font-mono font-bold text-brand-near-black/50 uppercase tracking-widest block">
-                    Primary Area for Improvement
-                  </span>
-                  <div className="mt-3 flex items-start gap-2.5">
+                  <div className="flex items-start gap-2.5 mt-2">
                     <AlertCircle className="w-4 h-4 text-brand-red shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-display font-extrabold text-sm text-brand-near-black uppercase tracking-tight">
-                        {analytics?.surveySummary?.topComplaint || 'No complaints recorded'}
-                      </p>
-                      <p className="text-[10px] font-sans text-brand-near-black/60 mt-1 leading-relaxed">
-                        Top complaint extracted from optional text inputs on packet scan surveys.
-                      </p>
+                    <div className="w-full space-y-1.5">
+                      {analytics?.skipRateByCity?.slice(0, 3).map((item: any) => (
+                        <div key={item.city} className="flex items-center justify-between text-[10px] font-mono font-bold uppercase tracking-wider">
+                          <span className="text-brand-near-black/70">{item.city}</span>
+                          <span className={item.skipRate > 0.3 ? 'text-brand-red' : 'text-brand-green'}>
+                            {(item.skipRate * 100).toFixed(0)}%
+                          </span>
+                        </div>
+                      ))}
+                      {!analytics?.skipRateByCity?.length && (
+                        <span className="text-brand-near-black/50 text-[10px] font-mono">No city data in scope</span>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                {/* Most Loved Flavor */}
+                {/* Pincode Availability */}
                 <div className="bg-brand-white p-5 rounded-2xl border border-brand-lavender/30 shadow-xs flex flex-col justify-between stat-box">
                   <span className="text-[10px] font-mono font-bold text-brand-near-black/50 uppercase tracking-widest block">
-                    Favorite Flavor in Scope
+                    Pincode Coverage Rate
                   </span>
                   <div className="mt-3 flex items-start gap-2.5">
-                    <ThumbsUp className="w-4 h-4 text-brand-purple shrink-0 mt-0.5" />
+                    <MapPin className="w-4 h-4 text-brand-purple shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-display font-extrabold text-sm text-brand-purple uppercase tracking-tight">
-                        {analytics?.surveySummary?.mostLovedFlavour || 'None'}
+                      <p className="font-display font-extrabold text-lg text-brand-purple uppercase tracking-tight">
+                        {analytics?.pincodeAvailabilityRate != null
+                          ? `${(analytics.pincodeAvailabilityRate * 100).toFixed(0)}%`
+                          : '—'}
                       </p>
                       <p className="text-[10px] font-sans text-brand-near-black/60 mt-1 leading-relaxed">
-                        SKU receiving the highest ratio of 'Loved It' questionnaire results.
+                        Respondents who found MadMix available in their pincode.
                       </p>
                     </div>
                   </div>
