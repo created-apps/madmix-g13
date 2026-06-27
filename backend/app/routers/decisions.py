@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.core.security import verify_supabase_jwt
+from app.core.security import verify_supabase_token
 from app.db.supabase import get_service_client
 from app.schemas.decisions import DecisionResponse
 from app.services import engine
@@ -14,7 +14,7 @@ def get_decisions(
     state: str = '',
     platform: str = '',
     flavour: str = '',
-    _user: dict = Depends(verify_supabase_jwt),
+    _user: dict = Depends(verify_supabase_token),
 ):
     """
     Runs the decisions engine for the given scope.
@@ -27,7 +27,7 @@ def get_decisions(
 @router.get('/decisions/{decision_id}', response_model=DecisionResponse)
 def get_decision_by_id(
     decision_id: str,
-    _user: dict = Depends(verify_supabase_jwt),
+    _user: dict = Depends(verify_supabase_token),
 ):
     """Returns a single decision by its ID."""
     db = get_service_client()

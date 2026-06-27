@@ -37,7 +37,7 @@ We adopt a **hybrid serverless architecture** that strikes a balance between rap
 *   **FastAPI Service Boundary:** Heavy business analysis, multi-table analytical joins (e.g., fusing sales metrics with survey pincodes), and the live Decisions Engine are delegated to **FastAPI on Render**.
 *   **Token Authentication on FastAPI:**
     *   The client forwards the `Authorization: Bearer <Supabase_JWT>` header to FastAPI on every request.
-    *   FastAPI decodes and validates this JWT locally using the shared `SUPABASE_JWT_SECRET` (confirming signature authenticity, expiration, and user ID).
+    *   FastAPI validates this JWT using asymmetric RS256/ES256 verification against the project's public JWKS endpoint (`/auth/v1/.well-known/jwks.json`) — no shared secret required.
     *   Once authenticated, FastAPI interacts with the Postgres database using the **Supabase Service Role Key**, bypassing RLS rules on the backend to perform powerful, server-side aggregations and write pre-computed decisions.
 
 ---
@@ -272,7 +272,7 @@ backend/
 *   `pandas>=2.2.0`
 *   `openpyxl>=3.1.0` (for spreadsheet structures)
 *   `anthropic>=0.18.0`
-*   `python-jose[cryptography]>=3.3.0` (for offline JWT decodes)
+*   `PyJWT[cryptography]>=2.8.0` (for asymmetric RS256/ES256 JWT verification via JWKS)
 
 ---
 

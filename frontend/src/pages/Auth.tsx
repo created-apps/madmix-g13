@@ -27,14 +27,18 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
         if (authErr) throw authErr;
         onLoginSuccess();
       } else if (screen === 'signup') {
-        const { error: authErr } = await supabase.auth.signUp({
+        const { data, error: authErr } = await supabase.auth.signUp({
           email,
           password,
           options: { data: { full_name: fullName } },
         });
         if (authErr) throw authErr;
-        setMsg('Account created! Check your email to confirm, then sign in.');
-        setScreen('login');
+        if (data.session) {
+          onLoginSuccess();
+        } else {
+          setMsg('Account created! Check your email to confirm, then sign in.');
+          setScreen('login');
+        }
       } else {
         const { error: authErr } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/reset-password`,
@@ -82,7 +86,7 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
           <p className="text-xs text-brand-near-black/70">
             {screen === 'login' && 'Get updates on sales and operations inside our dashboard.'}
             {screen === 'signup' && 'Be in the know. All operational access is pre-authorized.'}
-            {screen === 'forgot' && 'We'll email you instructions to restore operational portal.'}
+            {screen === 'forgot' && "We'll email you instructions to restore operational portal."}
           </p>
         </div>
 

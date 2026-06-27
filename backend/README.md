@@ -14,7 +14,6 @@ Create a `.env` file inside this directory:
 ```env
 SUPABASE_URL="https://your-project.supabase.co"
 SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
-SUPABASE_JWT_SECRET="your-jwt-signing-secret"
 ANTHROPIC_API_KEY="sk-ant-your-claude-api-key"
 ```
 
@@ -55,6 +54,6 @@ Follow these steps to host your Python FastAPI server on **Render**:
     *   **Build Command:** `pip install -r backend/requirements.txt`
     *   **Start Command:** `uvicorn backend.app.main:app --host 0.0.0.0 --port 10000`
 3.  **Inject Secrets:**
-    *   Add the environment variables in your Render project panel (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET`, `ANTHROPIC_API_KEY`).
+    *   Add the environment variables in your Render project panel (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY`).
 4.  **Health Check Endpoint:**
     *   Configure Render to check `/api/health` to verify zero-downtime rolling upgrades.

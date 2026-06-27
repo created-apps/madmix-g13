@@ -2,7 +2,7 @@ import re
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.core.security import verify_supabase_jwt
+from app.core.security import verify_supabase_token
 from app.db.supabase import get_service_client
 from app.schemas.import_schemas import DataType, ImportRequest, ImportResponse
 
@@ -42,7 +42,7 @@ def _normalize_row(row: dict) -> dict:
 def import_data(
     data_type: DataType,
     body: ImportRequest,
-    _user: dict = Depends(verify_supabase_jwt),
+    _user: dict = Depends(verify_supabase_token),
 ):
     """
     Upserts a batch of rows into the specified table.
@@ -77,7 +77,7 @@ def import_data(
 @router.delete('/import/{data_type}')
 def clear_data(
     data_type: DataType,
-    _user: dict = Depends(verify_supabase_jwt),
+    _user: dict = Depends(verify_supabase_token),
 ):
     """
     Deletes all rows from the specified table.

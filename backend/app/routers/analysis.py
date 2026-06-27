@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from app.core.security import verify_supabase_jwt
+from app.core.security import verify_supabase_token
 from app.db.supabase import get_service_client
 from app.schemas.analysis import AnalysisResponse, HotCityItem
 from app.services import hot_cities, metrics
@@ -15,7 +15,7 @@ def get_analysis(
     pincode: str = '',
     platform: str = '',
     flavour: str = '',
-    _user: dict = Depends(verify_supabase_jwt),
+    _user: dict = Depends(verify_supabase_token),
 ):
     """
     Returns unified analytics for the given filter scope.
@@ -28,7 +28,7 @@ def get_analysis(
 
 
 @router.get('/hot-cities', response_model=list[HotCityItem])
-def get_hot_cities(_user: dict = Depends(verify_supabase_jwt)):
+def get_hot_cities(_user: dict = Depends(verify_supabase_token)):
     """
     Returns the top cities ranked by urgency (skip rate + sales decline).
     Used on the Dashboard home page hot-cities strip.

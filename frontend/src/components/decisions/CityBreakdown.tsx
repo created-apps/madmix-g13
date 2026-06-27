@@ -243,7 +243,7 @@ export default function CityBreakdown({ cityName }: CityBreakdownProps) {
                   Capitalise on BB growth momentum ({bbPct >= 0 ? `+${bbPct.toFixed(1)}%` : '+12.5%'})
                 </p>
                 <p className="text-brand-near-black/75">
-                  {cityData.city} BB grew fastest among the state’s regional clusters — from {bbAprVal.toLocaleString()} ➜ {bbMayVal.toLocaleString()}
+                  {cityData.city} BB grew fastest among the state's regional clusters — from {bbAprVal.toLocaleString()} ➜ {bbMayVal.toLocaleString()}
                 </p>
                 <p className="text-[10px] text-brand-near-black/50">
                   Impact: Fastest-growing major market; target 50K PODs by June · Confidence: 83% · <span className="text-brand-green font-bold uppercase">Critical</span>
